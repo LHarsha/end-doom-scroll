@@ -25,7 +25,12 @@
     return m ? m[1] : null;
   }
 
+  // EXTERNAL: the page is an overlay (the Android app) and gets told about the feed instead of seeing it.
+  const EXTERNAL = !hasExtension && !!window.__mochiDemo?.external;
+  let externalOnFeed = false;
+
   function isFeedPage() {
+    if (EXTERNAL) return externalOnFeed;
     if (IS_YT) return shortId() !== null;
     // only the Reels viewer; DMs, the home feed and profiles are fine
     if (IS_IG) return /^\/reels?(\/|$)/.test(location.pathname);
@@ -250,7 +255,7 @@
   host.id = "mochi-guard";
   const root = host.attachShadow({ mode: "closed" });
   root.innerHTML = `<style>${CSS}</style>
-    <div class="curtain"><div>Mochi closed this tab.<small>go do something nice ♡</small></div></div>
+    <div class="curtain"><div>${window.__mochiDemo?.closedText || "Mochi closed this tab."}<small>go do something nice ♡</small></div></div>
     <div class="xbtn">×</div>
     <div class="wrap" data-mood="happy">
       <div class="bubble"></div>
@@ -625,7 +630,9 @@
       if (stage === "closing") return;
       checkShort();
       const onFeed = isFeedPage();
-      const engaged = document.visibilityState === "visible" && now - lastInput < IDLE_AFTER_MS && onFeed;
+      // in an app overlay there is no input to see, so the feed being open is what counts
+      const active = EXTERNAL || now - lastInput < IDLE_AFTER_MS;
+      const engaged = document.visibilityState === "visible" && active && onFeed;
       if (engaged) activeMs += dt;
 
       if (stage === "idle" && onFeed && (activeMs > 4000 || swipes >= 2)) appear();
@@ -650,6 +657,19 @@
       if (stage === "watching" && p >= 0.75) warn();
       if (p >= 1) closeTab();
     }, 500);
+  }
+
+  if (EXTERNAL) {
+    window.mochi = {
+      swipe() {
+        lastInput = Date.now();
+        countSwipe();
+      },
+      feed(on) {
+        externalOnFeed = !!on;
+        if (on) lastInput = Date.now();
+      },
+    };
   }
 
   if (!hasExtension) {
