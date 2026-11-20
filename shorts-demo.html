@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mochi Shorts test</title>
+<style>
+  body { margin: 0; background: #0f0f0f; color: #fff; font-family: system-ui, sans-serif; height: 100vh; overflow: hidden; }
+  .short { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 300px; height: 520px; border-radius: 14px;
+    display: grid; place-items: center; font-size: 28px; font-weight: 800; text-align: center; }
+  .nav { position: absolute; right: 30%; top: 50%; transform: translateY(-50%); display: grid; gap: 12px; }
+  .nav button { width: 48px; height: 48px; border-radius: 50%; border: 0; background: #272727; color: #fff; font-size: 20px; cursor: pointer; }
+  .top { position: absolute; left: 16px; top: 12px; display: flex; gap: 8px; }
+  .top a { color: #fff; background: #272727; padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="top"><a href="#" id="home">Home (leave Shorts)</a><a href="#" id="back">Back to Shorts</a></div>
+  <div class="short" id="short"></div>
+  <div class="nav"><button id="up" aria-label="Previous Short">▲</button><button id="down" aria-label="Next Short">▼</button></div>
+  <script>
+    // Simulates YouTube's single-page navigation: each Short has its own /shorts/<id> URL.
+    const colors = ["#c4302b", "#2f6fe0", "#1fa596", "#7b2ff7", "#e85d2a"];
+    let n = 1;
+    const short = document.getElementById("short");
+    function show(i) {
+      n = Math.max(1, i);
+      history.pushState({}, "", `/shorts/demo${n}`);
+      short.style.background = colors[n % colors.length];
+      short.textContent = `Short #${n}`;
+      window.dispatchEvent(new Event("yt-navigate-finish"));
+    }
+    document.getElementById("down").onclick = () => show(n + 1);
+    document.getElementById("up").onclick = () => show(n - 1);
+    document.getElementById("home").onclick = (e) => { e.preventDefault(); history.pushState({}, "", "/"); short.textContent = "Home feed"; short.style.background = "#272727"; window.dispatchEvent(new Event("yt-navigate-finish")); };
+    document.getElementById("back").onclick = (e) => { e.preventDefault(); show(n + 1); };
+    show(1);
+    window.__mochiDemo = { host: "www.youtube.com", minutes: 2, swipes: 10 };
+  </script>
+  <script src="/content.js"></script>
+</body>
+</html>

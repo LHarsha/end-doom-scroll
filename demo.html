@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Mochi demo feed</title>
+<style>
+  body { margin: 0; background: #000; font-family: system-ui, sans-serif; }
+  .feed { height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; }
+  .reel { height: 100vh; scroll-snap-align: start; display: grid; place-items: center; color: #fff; font-size: 40px; font-weight: 700; }
+  .note { position: fixed; left: 12px; top: 12px; color: #fff; background: rgba(255,255,255,.12); padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="note">Demo: limit is 12 swipes or 40 seconds. Scroll the feed.</div>
+  <div class="feed" id="feed"></div>
+  <script>
+    const colors = ["#7b2ff7", "#f107a3", "#00b4d8", "#ff6b35", "#2ec4b6", "#e71d36", "#3a86ff", "#8338ec"];
+    const feed = document.getElementById("feed");
+    for (let i = 1; i <= 60; i++) {
+      const d = document.createElement("div");
+      d.className = "reel";
+      d.style.background = colors[i % colors.length];
+      d.textContent = `reel #${i}`;
+      feed.appendChild(d);
+    }
+    window.__mochiDemo = { minutes: 40 / 60, swipes: 12 };
+    document.addEventListener("mochi:close", () => console.log("mochi:close fired"));
+  </script>
+  <script src="content.js"></script>
+</body>
+</html>
