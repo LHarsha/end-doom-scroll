@@ -18,6 +18,7 @@
 
   const HOST = (!hasExtension && window.__mochiDemo?.host) || location.hostname;
   const IS_YT = HOST.endsWith("youtube.com");
+  const IS_IG = HOST.endsWith("instagram.com");
 
   function shortId() {
     const m = location.pathname.match(/^\/shorts\/([^/?#]+)/);
@@ -26,6 +27,8 @@
 
   function isFeedPage() {
     if (IS_YT) return shortId() !== null;
+    // only the Reels viewer; DMs, the home feed and profiles are fine
+    if (IS_IG) return /^\/reels?(\/|$)/.test(location.pathname);
     return true;
   }
 
