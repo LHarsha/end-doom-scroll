@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mochi - doomscroll guard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A tiny pet that watches you scroll and closes the tab when you've had enough.",
   "permissions": ["storage", "tabs"],
   "background": {
