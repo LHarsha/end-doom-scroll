@@ -1,0 +1,642 @@
+(() => {
+  if (window.__mochiLoaded) return;
+  window.__mochiLoaded = true;
+
+  const DEFAULTS = { enabled: true, minutes: 3, swipes: 40, lastClosedAt: 0 };
+  const REPEAT_WINDOW_MS = 10 * 60 * 1000;
+  const REPEAT_FACTOR = 0.25;
+  const IDLE_AFTER_MS = 20 * 1000;
+  const SLEEP_AFTER_MS = 9 * 1000;
+  const SWIPE_GAP_MS = 350;
+
+  const hasExtension = typeof chrome !== "undefined" && chrome.runtime?.id;
+
+  function loadSettings() {
+    if (!hasExtension) return Promise.resolve({ ...DEFAULTS, ...(window.__mochiDemo || {}) });
+    return chrome.storage.local.get(DEFAULTS);
+  }
+
+  const HOST = (!hasExtension && window.__mochiDemo?.host) || location.hostname;
+  const IS_YT = HOST.endsWith("youtube.com");
+
+  function shortId() {
+    const m = location.pathname.match(/^\/shorts\/([^/?#]+)/);
+    return m ? m[1] : null;
+  }
+
+  function isFeedPage() {
+    if (IS_YT) return shortId() !== null;
+    return true;
+  }
+
+  const PET_SVG = `
+    <svg viewBox="0 0 100 100" class="pet" aria-hidden="true">
+      <ellipse class="shadow" cx="50" cy="96" rx="26" ry="4"/>
+      <g class="feet">
+        <ellipse class="foot l" cx="38" cy="90" rx="8" ry="5.5"/>
+        <ellipse class="foot r" cx="62" cy="90" rx="8" ry="5.5"/>
+      </g>
+      <g class="bob"><g class="body">
+        <g class="arm l"><ellipse cx="17" cy="66" rx="6" ry="9"/></g>
+        <g class="arm r"><ellipse cx="83" cy="66" rx="6" ry="9"/></g>
+        <g class="sprout">
+          <path class="stem" d="M50 32 C50 25 51 20 53 16"/>
+          <path class="leaf" d="M52 19 C45 10 35 11 32 16 C38 21 46 22 52 19 Z"/>
+          <path class="leaf" d="M53 17 C59 9 68 9 71 13 C66 19 59 20 53 17 Z"/>
+        </g>
+        <ellipse class="skin" cx="50" cy="62" rx="36" ry="31"/>
+        <ellipse class="shine" cx="34" cy="42" rx="9" ry="5" transform="rotate(-25 34 42)"/>
+        <ellipse class="belly" cx="50" cy="74" rx="19" ry="13"/>
+        <ellipse class="cheek" cx="25" cy="67" rx="6.5" ry="4"/>
+        <ellipse class="cheek" cx="75" cy="67" rx="6.5" ry="4"/>
+        <g class="eyes">
+          <ellipse class="eye-white" cx="38" cy="56" rx="10" ry="11.5"/>
+          <ellipse class="eye-white" cx="62" cy="56" rx="10" ry="11.5"/>
+          <g class="pupils">
+            <ellipse class="pupil" cx="38" cy="57" rx="6.2" ry="7"/>
+            <ellipse class="pupil" cx="62" cy="57" rx="6.2" ry="7"/>
+            <circle class="glint" cx="40.5" cy="53.5" r="2.4"/>
+            <circle class="glint" cx="64.5" cy="53.5" r="2.4"/>
+            <circle class="glint" cx="36" cy="60" r="1.1"/>
+            <circle class="glint" cx="60" cy="60" r="1.1"/>
+          </g>
+          <rect class="lid" x="26" y="43" width="48" height="0" rx="3"/>
+          <path class="shut" d="M29 57 Q38 63 47 57 M53 57 Q62 63 71 57"/>
+        </g>
+        <path class="brow l" d="M28 41 L45 46"/>
+        <path class="brow r" d="M72 41 L55 46"/>
+        <path class="sweat" d="M80 40 C77 45 77 49 80 49 C83 49 83 45 80 40 Z"/>
+        <path class="mouth m-happy" d="M44 71 Q47 74.5 50 71 Q53 74.5 56 71"/>
+        <path class="mouth m-open" d="M45 71 Q50 80 55 71 Z"/>
+        <path class="mouth m-flat" d="M45 73 Q50 72 55 73"/>
+        <path class="mouth m-mad" d="M44 76 Q50 70 56 76"/>
+        <ellipse class="mouth m-o" cx="50" cy="73" rx="2.6" ry="3"/>
+      </g></g>
+    </svg>`;
+
+  const CSS = `
+    :host { all: initial; }
+    .wrap {
+      position: fixed; z-index: 2147483647; left: 0; top: 0;
+      width: 88px; height: 88px; pointer-events: auto; cursor: pointer;
+      transform: translate(var(--x, 0px), var(--y, 0px));
+      transition: transform 1s linear, opacity .4s;
+      opacity: 0; user-select: none;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .wrap.shown { opacity: 1; }
+    .rig { width: 100%; height: 100%; transform-origin: 50% 50%; transition: transform .35s ease; }
+    .wrap.climbing .rig { transform: rotate(-90deg); }
+    .pet { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 6px rgba(0,0,0,.18)); }
+
+    .skin, .arm ellipse { fill: #ff9466; }
+    .shine { fill: #fff; opacity: .35; }
+    .belly { fill: #ffd2b8; }
+    .cheek { fill: #ff6f91; opacity: .5; }
+    .foot { fill: #f07546; }
+    .shadow { fill: #000; opacity: .16; transform-origin: 50px 96px; }
+    .eye-white { fill: #fff; }
+    .pupil { fill: #2a1b18; }
+    .glint { fill: #fff; }
+    .lid { fill: #ff9466; transition: height .09s; }
+    .stem { fill: none; stroke: #3f9e4e; stroke-width: 2.6; stroke-linecap: round; }
+    .leaf { fill: #6fd17c; stroke: #3f9e4e; stroke-width: 1.6; }
+    .sprout { transform-origin: 50px 32px; animation: sway 3s ease-in-out infinite; }
+    .brow { stroke: #2a1b18; stroke-width: 3.2; stroke-linecap: round; opacity: 0; transition: opacity .2s; }
+    .sweat { fill: #8fd3ff; opacity: 0; transition: opacity .3s; }
+    .mouth { fill: none; stroke: #2a1b18; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+    .m-open, .m-o { fill: #b23a48; }
+    .pupils { transition: transform .15s ease-out; }
+    .arm { transition: transform .25s cubic-bezier(.3,1.5,.5,1); }
+    .arm.l { transform-origin: 22px 60px; }
+    .arm.r { transform-origin: 78px 60px; }
+    .body { transform-origin: 50px 92px; animation: breathe 2.6s ease-in-out infinite; }
+    .bob { transform-origin: 50px 92px; }
+
+    .wrap[data-mood="happy"] .m-happy,
+    .wrap[data-mood="excited"] .m-open,
+    .wrap[data-mood="worried"] .m-flat,
+    .wrap[data-mood="mad"] .m-mad,
+    .wrap[data-mood="sleepy"] .m-o,
+    .wrap[data-mood="shock"] .m-o { opacity: 1; }
+    .wrap[data-mood="mad"] .brow { opacity: 1; }
+    .wrap[data-mood="worried"] .sweat, .wrap[data-mood="mad"] .sweat { opacity: 1; }
+    .shut { fill: none; stroke: #2a1b18; stroke-width: 2.6; stroke-linecap: round; opacity: 0; }
+    .wrap[data-mood="sleepy"] .lid { height: 25px; }
+    .wrap[data-mood="sleepy"] .shut, .wrap.blink .shut { opacity: 1; }
+    .wrap[data-mood="shock"] .pupil { transform: scale(.7); transform-box: fill-box; transform-origin: center; }
+    .wrap.blink .lid { height: 25px; }
+
+    .wrap.walking .bob { animation: waddle .38s ease-in-out infinite; }
+    .wrap.walking .foot.l { animation: step .38s ease-in-out infinite; }
+    .wrap.walking .foot.r { animation: step .38s ease-in-out infinite .19s; }
+    .wrap.walking .arm.l { animation: swing .38s ease-in-out infinite; }
+    .wrap.walking .arm.r { animation: swing .38s ease-in-out infinite reverse; }
+    .wrap.running .bob, .wrap.running .foot, .wrap.running .arm { animation-duration: .22s !important; }
+    .wrap.climbing .bob { animation: waddle .26s ease-in-out infinite; }
+    .wrap.climbing .arm.l { animation: climb .26s ease-in-out infinite; }
+    .wrap.climbing .arm.r { animation: climb .26s ease-in-out infinite reverse; }
+    .wrap.climbing .shadow { opacity: 0; }
+
+    .wrap.waving .arm.r { animation: wave .36s ease-in-out 4; }
+    .wrap.reach .arm.r { transform: rotate(-150deg); }
+    .wrap.dance .bob { animation: dance .5s ease-in-out 4; }
+    .wrap.shake .bob { animation: shake .4s ease-in-out 2; }
+    .wrap.jump .bob { animation: jump .55s cubic-bezier(.3,1.5,.5,1); }
+    .wrap.jump .shadow { animation: shadowjump .55s cubic-bezier(.3,1.5,.5,1); }
+    .wrap.squish .bob { animation: squish .4s ease; }
+    .wrap.stomp .bob { animation: stomp .3s ease 3; }
+    .wrap[data-mood="sleepy"] .body { animation: snore 3.2s ease-in-out infinite; }
+
+    @keyframes breathe { 50% { transform: scale(1.025, .975); } }
+    @keyframes sway { 50% { transform: rotate(8deg); } }
+    @keyframes waddle { 0%,100% { transform: rotate(-7deg) translateY(0); } 25% { transform: rotate(0) translateY(-5px); } 50% { transform: rotate(7deg) translateY(0); } 75% { transform: rotate(0) translateY(-5px); } }
+    @keyframes step { 50% { transform: translateY(-5px); } }
+    @keyframes swing { 50% { transform: rotate(30deg); } }
+    @keyframes climb { 0%,100% { transform: rotate(-120deg); } 50% { transform: rotate(-40deg); } }
+    @keyframes wave { 0%,100% { transform: rotate(-140deg); } 50% { transform: rotate(-100deg); } }
+    @keyframes dance { 25% { transform: rotate(-12deg) translateY(-4px); } 75% { transform: rotate(12deg) translateY(-4px); } }
+    @keyframes shake { 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+    @keyframes jump { 0% { transform: scale(1.1,.9); } 40% { transform: translateY(-30px) scale(.94,1.08); } 75% { transform: translateY(0) scale(1.12,.9); } 100% { transform: none; } }
+    @keyframes shadowjump { 40% { transform: scale(.6); opacity: .08; } }
+    @keyframes squish { 30% { transform: scale(1.18,.82); } 60% { transform: scale(.92,1.1); } }
+    @keyframes stomp { 50% { transform: scale(1.08,.9) translateY(2px); } }
+    @keyframes snore { 50% { transform: scale(1.05,.96); } }
+
+    .fx { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .p {
+      position: absolute; font-size: 18px; line-height: 1; font-weight: 800;
+      animation: floatup 1.3s ease-out forwards;
+    }
+    .p.heart { color: #ff5c8a; }
+    .p.z { color: #8a9bff; font-size: 15px; animation-duration: 2s; }
+    .p.note { color: #ffb347; }
+    .p.bang { color: #ff4d4d; font-size: 26px; animation: pop .8s ease-out forwards; }
+    .p.star { color: #ffd23f; font-size: 16px; animation: burst .7s ease-out forwards; }
+    @keyframes floatup { 0% { opacity: 0; transform: translate(0,0) scale(.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx, 10px), -46px) scale(1.1); } }
+    @keyframes pop { 0% { opacity: 0; transform: scale(.3); } 30% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0; transform: scale(1) translateY(-8px); } }
+    @keyframes burst { 0% { opacity: 1; transform: translate(0,0) scale(.5) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.2) rotate(140deg); } }
+
+    .bubble {
+      position: absolute; bottom: 96px; right: 0; width: max-content; max-width: 200px;
+      background: #fff; color: #2a1b18; font-size: 13.5px; line-height: 1.35; font-weight: 650;
+      padding: 8px 12px; border-radius: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.2);
+      opacity: 0; transform: translateY(6px) scale(.9); transform-origin: bottom right;
+      transition: opacity .18s, transform .25s cubic-bezier(.3,1.6,.5,1); pointer-events: none;
+    }
+    .bubble::after {
+      content: ""; position: absolute; bottom: -5px; right: 32px; width: 11px; height: 11px;
+      background: #fff; transform: rotate(45deg); border-radius: 2px;
+    }
+    .bubble.on { opacity: 1; transform: none; }
+    .wrap.bl .bubble { right: auto; left: 0; transform-origin: bottom left; }
+    .wrap.bl .bubble::after { right: auto; left: 32px; }
+    .wrap.top .bubble { bottom: auto; top: 96px; transform-origin: top right; }
+    .wrap.top .bubble::after { bottom: auto; top: -5px; }
+    .wrap.climbing .bubble { display: none; }
+
+    .meter {
+      position: absolute; left: 22px; right: 22px; bottom: -6px; height: 4px; border-radius: 4px;
+      background: rgba(0,0,0,.15); overflow: hidden; opacity: .85;
+    }
+    .meter i { display: block; height: 100%; width: 0; background: #6fd17c; transition: width .6s, background .4s; }
+    .meter.warm i { background: #ffb347; }
+    .meter.hot i { background: #ff4d4d; }
+    .wrap.top .meter, .wrap.climbing .meter { display: none; }
+
+    .curtain {
+      position: fixed; inset: 0; z-index: 2147483646; pointer-events: none;
+      background: #1b1418; color: #fff;
+      clip-path: circle(0 at var(--cx, 95%) var(--cy, 5%));
+      transition: clip-path .8s cubic-bezier(.6,0,.4,1);
+      display: grid; place-items: center; text-align: center;
+      font: 650 21px system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .curtain.on { clip-path: circle(150% at var(--cx, 95%) var(--cy, 5%)); pointer-events: auto; }
+    .curtain small { display: block; font-weight: 400; font-size: 14px; opacity: .7; margin-top: 6px; }
+    .xbtn {
+      position: fixed; z-index: 2147483647; width: 32px; height: 32px; border-radius: 50%;
+      background: #ff5a5a; color: #fff; display: grid; place-items: center;
+      font: 800 19px/1 system-ui, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,.28), inset 0 -3px 0 rgba(0,0,0,.15);
+      transform: scale(0); transition: transform .3s cubic-bezier(.3,1.7,.5,1);
+    }
+    .xbtn.on { transform: scale(1); animation: throb 1s ease-in-out infinite .3s; }
+    .xbtn.pressed { animation: none; transform: scale(.65); background: #d13c3c; transition-duration: .1s; }
+    @keyframes throb { 50% { transform: scale(1.12); } }
+  `;
+
+  const host = document.createElement("div");
+  host.id = "mochi-guard";
+  const root = host.attachShadow({ mode: "closed" });
+  root.innerHTML = `<style>${CSS}</style>
+    <div class="curtain"><div>Mochi closed this tab.<small>go do something nice ♡</small></div></div>
+    <div class="xbtn">×</div>
+    <div class="wrap" data-mood="happy">
+      <div class="bubble"></div>
+      <div class="rig">${PET_SVG}</div>
+      <div class="fx"></div>
+      <div class="meter"><i></i></div>
+    </div>`;
+
+  const wrap = root.querySelector(".wrap");
+  const bubble = root.querySelector(".bubble");
+  const pupils = root.querySelector(".pupils");
+  const fx = root.querySelector(".fx");
+  const meter = root.querySelector(".meter");
+  const meterFill = root.querySelector(".meter i");
+  const curtain = root.querySelector(".curtain");
+  const xbtn = root.querySelector(".xbtn");
+
+  const PET = 88;
+  const EDGE = 10;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  let pos = { x: 0, y: 0 };
+  let walking = false;
+
+  const vw = () => document.documentElement.clientWidth || window.innerWidth;
+  const vh = () => document.documentElement.clientHeight || window.innerHeight;
+  const groundY = () => vh() - PET - 14;
+  const maxX = () => vw() - PET - EDGE;
+
+  function place(x, y, ms = 0) {
+    wrap.style.transition = `transform ${ms}ms linear, opacity .4s`;
+    wrap.style.setProperty("--x", `${Math.round(x)}px`);
+    wrap.style.setProperty("--y", `${Math.round(y)}px`);
+    pos = { x, y };
+    wrap.classList.toggle("bl", x < 220);
+  }
+
+  async function walkTo(x, y = pos.y, speed = 110, cls = "walking") {
+    const dist = Math.hypot(x - pos.x, y - pos.y);
+    if (dist < 2) return;
+    const ms = (dist / speed) * 1000;
+    walking = true;
+    look(Math.sign(x - pos.x) * 4, 0, ms + 100);
+    const classes = cls.split(" ");
+    wrap.classList.add(...classes);
+    place(x, y, ms);
+    await sleep(ms);
+    wrap.classList.remove(...classes);
+    walking = false;
+  }
+
+  let bubbleTimer;
+  function say(text, ms = 2600) {
+    clearTimeout(bubbleTimer);
+    bubble.textContent = text;
+    bubble.classList.remove("on");
+    void bubble.offsetWidth;
+    bubble.classList.add("on");
+    if (ms) bubbleTimer = setTimeout(() => bubble.classList.remove("on"), ms);
+  }
+  const hush = () => bubble.classList.remove("on");
+
+  const setMood = (m) => (wrap.dataset.mood = m);
+  const mood = () => wrap.dataset.mood;
+
+  function pulse(cls, ms) {
+    wrap.classList.remove(cls);
+    void wrap.offsetWidth;
+    wrap.classList.add(cls);
+    return sleep(ms).then(() => wrap.classList.remove(cls));
+  }
+
+  function particle(kind, text, opts = {}) {
+    const el = document.createElement("span");
+    el.className = `p ${kind}`;
+    el.textContent = text;
+    el.style.left = `${opts.x ?? rand(30, 58)}px`;
+    el.style.top = `${opts.y ?? rand(4, 20)}px`;
+    el.style.setProperty("--dx", `${opts.dx ?? rand(-18, 18)}px`);
+    if (opts.dy != null) el.style.setProperty("--dy", `${opts.dy}px`);
+    fx.appendChild(el);
+    setTimeout(() => el.remove(), 2100);
+  }
+  function hearts(n = 4) {
+    for (let i = 0; i < n; i++) setTimeout(() => particle("heart", "♥"), i * 140);
+  }
+
+  let lookUntil = 0;
+  function look(dx, dy, hold = 600) {
+    lookUntil = Date.now() + hold;
+    pupils.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+  function followPointer(px, py) {
+    if (Date.now() < lookUntil || mood() === "sleepy") return;
+    const dx = px - (pos.x + PET / 2);
+    const dy = py - (pos.y + PET / 2);
+    const d = Math.hypot(dx, dy) || 1;
+    const k = Math.min(1, d / 220) * 3.8;
+    pupils.style.transform = `translate(${(dx / d) * k}px, ${(dy / d) * k}px)`;
+  }
+
+  (function blinkLoop() {
+    setTimeout(() => {
+      wrap.classList.add("blink");
+      setTimeout(() => wrap.classList.remove("blink"), 120);
+      if (Math.random() < 0.25) setTimeout(() => {
+        wrap.classList.add("blink");
+        setTimeout(() => wrap.classList.remove("blink"), 110);
+      }, 220);
+      blinkLoop();
+    }, rand(2000, 5000));
+  })();
+
+  // --- usage tracking ---
+  let settings = { ...DEFAULTS };
+  let activeMs = 0;
+  let swipes = 0;
+  let lastInput = Date.now();
+  let lastSwipe = 0;
+  let stage = "idle"; // idle -> watching -> warned -> closing
+  let limits = { ms: 0, swipes: 0 };
+  let busy = false;
+
+  function progress() {
+    if (!limits.ms) return 0;
+    return Math.min(1, Math.max(activeMs / limits.ms, swipes / limits.swipes));
+  }
+
+  async function wake() {
+    if (mood() !== "sleepy") return;
+    setMood("shock");
+    particle("bang", "!", { x: 52, y: -8 });
+    await pulse("jump", 550);
+    setMood(stage === "warned" ? "worried" : "happy");
+  }
+
+  // On YouTube every new Short changes the URL, so that is what counts as a swipe.
+  // It also catches the on-screen up/down buttons, which fire no scroll events.
+  function onSwipe() {
+    const now = Date.now();
+    lastInput = now;
+    if (!isFeedPage()) return;
+    const fresh = now - lastSwipe > SWIPE_GAP_MS;
+    lastSwipe = now;
+    if (!fresh) return;
+    if (IS_YT) {
+      if (stage !== "idle" && stage !== "closing" && !walking) look(pos.x > vw() / 2 ? -3 : 3, 3.5, 700);
+      return;
+    }
+    countSwipe();
+  }
+
+  let lastShort = IS_YT ? shortId() : null;
+  function checkShort() {
+    if (!IS_YT) return;
+    const id = shortId();
+    if (!id || id === lastShort) return;
+    const counted = lastShort !== null;
+    lastShort = id;
+    lastInput = Date.now();
+    if (counted) countSwipe();
+  }
+  if (IS_YT) {
+    window.addEventListener("yt-navigate-finish", checkShort);
+    window.addEventListener("popstate", checkShort);
+  }
+
+  function countSwipe() {
+    swipes++;
+    if (stage === "idle" || stage === "closing") return;
+    wake();
+    if (!walking) look(pos.x > vw() / 2 ? -3 : 3, 3.5, 700);
+    if (stage === "warned" && !busy && Math.random() < 0.3) {
+      pulse("shake", 800);
+      say(pick(["hey!", "stoppp", "nooo more", "that's another one…", "i'm counting!"]), 1400);
+    }
+  }
+
+  window.addEventListener("wheel", onSwipe, { passive: true, capture: true });
+  window.addEventListener("touchmove", onSwipe, { passive: true, capture: true });
+  window.addEventListener("keydown", (e) => {
+    lastInput = Date.now();
+    if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "j", "k"].includes(e.key)) onSwipe();
+  }, { capture: true });
+  window.addEventListener("pointermove", (e) => {
+    lastInput = Date.now();
+    followPointer(e.clientX, e.clientY);
+  }, { passive: true, capture: true });
+  window.addEventListener("resize", () => {
+    if ((stage === "watching" || stage === "warned") && !walking) place(Math.min(pos.x, maxX()), groundY());
+  });
+
+  wrap.addEventListener("click", async () => {
+    if (stage === "closing" || busy) return;
+    busy = true;
+    await wake();
+    setMood("excited");
+    hearts(5);
+    pulse("squish", 400);
+    const p = progress();
+    say(
+      p < 0.4 ? pick(["hehe, that tickles!", "hi hi!", "i'm on duty ♡", "scroll responsibly :)"])
+      : p < 0.75 ? pick(["boop! but also… maybe wrap up?", "are you having fun, or just scrolling?", "i'm getting a little nervous"])
+      : pick(["don't try to distract me!", "pets won't save you now", "a few more and i'm closing it"]),
+      2400,
+    );
+    await sleep(1400);
+    setMood(stage === "warned" ? "worried" : "happy");
+    busy = false;
+  });
+
+  // --- idle life ---
+  async function wander() {
+    while (stage === "watching" || stage === "warned") {
+      await sleep(rand(1400, 3600));
+      if (stage !== "watching" && stage !== "warned") return;
+      if (busy || !isFeedPage()) continue;
+
+      if (Date.now() - lastInput > SLEEP_AFTER_MS) {
+        if (mood() !== "sleepy") {
+          setMood("sleepy");
+          hush();
+        }
+        particle("z", pick(["z", "Z", "z"]), { x: rand(56, 70), y: 2, dx: rand(6, 20) });
+        continue;
+      }
+
+      busy = true;
+      const warned = stage === "warned";
+      const roll = Math.random();
+      if (roll < 0.5) {
+        const target = Math.max(EDGE, Math.min(maxX(), pos.x + rand(-1, 1) * rand(80, vw() * 0.45)));
+        await walkTo(target, groundY(), warned ? 170 : 105, warned ? "walking running" : "walking");
+      } else if (roll < 0.65) {
+        look(-4, 0, 700); await sleep(700);
+        look(4, 0, 700); await sleep(700);
+      } else if (roll < 0.77 && !warned) {
+        wrap.classList.add("waving");
+        say(pick(["hi!", "hello there", "still here!", "♡"]), 1600);
+        await sleep(1500);
+        wrap.classList.remove("waving");
+      } else if (roll < 0.88 && !warned) {
+        setMood("excited");
+        for (let i = 0; i < 3; i++) setTimeout(() => particle("note", pick(["♪", "♫"])), i * 450);
+        await pulse("dance", 2000);
+        setMood("happy");
+      } else if (warned) {
+        await pulse("stomp", 900);
+        say(pick(["wrap it up, please", "almost time…", "i'm warning you!"]), 1800);
+      } else {
+        await pulse("jump", 550);
+        hearts(2);
+      }
+      busy = false;
+    }
+  }
+
+  async function appear() {
+    stage = "watching";
+    setMood("happy");
+    const y = groundY();
+    place(vw() + 10, y);
+    await sleep(40);
+    wrap.classList.add("shown");
+    await walkTo(vw() - PET * 0.55, y, 70);
+    look(-4, 0, 900);
+    await sleep(800);
+    look(0, -2, 500);
+    await sleep(400);
+    await walkTo(maxX() - 40, y, 110);
+    await pulse("jump", 550);
+    hearts(3);
+    const repeat = Date.now() - settings.lastClosedAt < REPEAT_WINDOW_MS;
+    say(repeat ? "back already? i'm watching closer this time." : "hi! i'll keep you company. and watch. closely.", 3200);
+    await sleep(1200);
+    wander();
+  }
+
+  function warn() {
+    stage = "warned";
+    setMood("worried");
+    meter.classList.add("hot");
+    pulse("shake", 800);
+    say("you've been scrolling for a while… wrap it up?", 3600);
+  }
+
+  async function closeTab() {
+    stage = "closing";
+    busy = true;
+    hush();
+    wrap.classList.remove("waving", "dance");
+    await sleep(walking ? 400 : 0);
+
+    setMood("shock");
+    particle("bang", "!", { x: 52, y: -8 });
+    await pulse("jump", 550);
+    setMood("mad");
+    say("okay. that's ENOUGH.", 1500);
+    await pulse("stomp", 900);
+    await sleep(500);
+    hush();
+
+    const btnX = vw() - 50;
+    const btnY = 14;
+    xbtn.style.left = `${btnX}px`;
+    xbtn.style.top = `${btnY}px`;
+    xbtn.classList.add("on");
+
+    const wallX = vw() - PET - 6;
+    await walkTo(wallX, groundY(), 280, "walking running");
+
+    wrap.classList.add("climbing");
+    await sleep(300);
+    await walkTo(wallX, 54, 320, "climbing");
+    wrap.classList.remove("climbing");
+
+    wrap.classList.add("top");
+    place(btnX - PET + 6, 2, 260);
+    await pulse("jump", 550);
+
+    look(4, -2, 5000);
+    wrap.classList.add("reach");
+    await sleep(350);
+    xbtn.classList.add("pressed");
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      particle("star", "★", { x: PET - 4, y: 18, dx: Math.cos(a) * 34, dy: Math.sin(a) * 34 });
+    }
+    curtain.style.setProperty("--cx", `${btnX + 16}px`);
+    curtain.style.setProperty("--cy", `${btnY + 16}px`);
+    curtain.classList.add("on");
+    await sleep(250);
+    wrap.classList.remove("reach");
+
+    setMood("happy");
+    wrap.classList.add("waving");
+    say("bye bye, feed ♡", 0);
+    hearts(3);
+    await sleep(1500);
+
+    if (hasExtension) {
+      chrome.runtime.sendMessage({ type: "mochi:close" });
+    } else {
+      document.dispatchEvent(new CustomEvent("mochi:close"));
+    }
+  }
+
+  async function start() {
+    settings = await loadSettings();
+    if (!settings.enabled) return;
+
+    const repeat = Date.now() - settings.lastClosedAt < REPEAT_WINDOW_MS;
+    const factor = repeat ? REPEAT_FACTOR : 1;
+    limits = {
+      ms: settings.minutes * 60 * 1000 * factor,
+      swipes: Math.max(3, Math.round(settings.swipes * factor)),
+    };
+
+    (document.body || document.documentElement).appendChild(host);
+
+    let last = Date.now();
+    let shownOnFeed = true;
+    setInterval(() => {
+      const now = Date.now();
+      const dt = now - last;
+      last = now;
+      if (stage === "closing") return;
+      checkShort();
+      const onFeed = isFeedPage();
+      const engaged = document.visibilityState === "visible" && now - lastInput < IDLE_AFTER_MS && onFeed;
+      if (engaged) activeMs += dt;
+
+      if (stage === "idle" && onFeed && (activeMs > 4000 || swipes >= 2)) appear();
+      if (stage === "idle") return;
+
+      if (onFeed !== shownOnFeed) {
+        shownOnFeed = onFeed;
+        wrap.classList.toggle("shown", onFeed);
+        xbtn.classList.remove("on");
+        if (onFeed) {
+          place(Math.min(pos.x, maxX()), groundY());
+          setTimeout(() => say(pick(["welcome back. i remember everything.", "oh, you're back here again?", "i kept your count, by the way."]), 2600), 400);
+        } else {
+          hush();
+        }
+      }
+      if (!onFeed) return;
+
+      const p = progress();
+      meterFill.style.width = `${Math.round(p * 100)}%`;
+      meter.classList.toggle("warm", p >= 0.4);
+      if (stage === "watching" && p >= 0.75) warn();
+      if (p >= 1) closeTab();
+    }, 500);
+  }
+
+  if (!hasExtension) {
+    window.__mochiState = () => ({ swipes, activeMs, onFeed: isFeedPage(), pos, stage, walking, busy, mood: mood(), cls: wrap.className, style: wrap.getAttribute("style"), op: getComputedStyle(wrap).opacity });
+  }
+
+  if (hasExtension) {
+    chrome.storage.onChanged.addListener((changes) => {
+      if (changes.enabled && changes.enabled.newValue === false) host.remove();
+    });
+  }
+
+  start();
+})();
