@@ -1,4 +1,4 @@
-const DEFAULTS = { enabled: true, minutes: 3, swipes: 40, replaceUrl: "", closedToday: 0, closedDate: "" };
+const DEFAULTS = { enabled: true, minutes: 3, swipes: 15, replaceUrl: "", closedToday: 0, closedDate: "" };
 const $ = (id) => document.getElementById(id);
 
 chrome.storage.local.get(DEFAULTS).then((s) => {

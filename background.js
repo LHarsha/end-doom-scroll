@@ -1,15 +1,19 @@
 const DEFAULTS = {
   enabled: true,
   minutes: 3,
-  swipes: 40,
+  swipes: 15,
   replaceUrl: "",
   closedToday: 0,
   closedDate: "",
   lastClosedAt: 0,
 };
 
+const OLD_DEFAULT_SWIPES = 40;
+
 chrome.runtime.onInstalled.addListener(async () => {
   const current = await chrome.storage.local.get(null);
+  // 40 was the first default and let way too many reels through; only bump people who never changed it
+  if (current.swipes === OLD_DEFAULT_SWIPES) current.swipes = DEFAULTS.swipes;
   await chrome.storage.local.set({ ...DEFAULTS, ...current });
 });
 

@@ -29,7 +29,7 @@ On YouTube, Mochi only cares about Shorts. Regular videos, the home page and sea
 ## Settings (extension popup)
 
 - **Minutes of scrolling allowed** (default 3). Only counts while the tab is visible and you're active.
-- **Swipes allowed** (default 40). Each scroll burst counts as one swipe.
+- **Swipes allowed** (default 15). Each scroll burst counts as one swipe.
 - **Instead of closing, go to**: optional URL to open in place of the feed.
 
 ## Try it without installing

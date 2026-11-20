@@ -2,7 +2,7 @@
   if (window.__mochiLoaded) return;
   window.__mochiLoaded = true;
 
-  const DEFAULTS = { enabled: true, minutes: 3, swipes: 40, lastClosedAt: 0 };
+  const DEFAULTS = { enabled: true, minutes: 3, swipes: 15, lastClosedAt: 0 };
   const REPEAT_WINDOW_MS = 10 * 60 * 1000;
   const REPEAT_FACTOR = 0.25;
   const IDLE_AFTER_MS = 20 * 1000;
