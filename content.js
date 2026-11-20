@@ -396,10 +396,13 @@
 
   // On YouTube every new Short changes the URL, so that is what counts as a swipe.
   // It also catches the on-screen up/down buttons, which fire no scroll events.
+  const typing = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+
   function onSwipe() {
     const now = Date.now();
     lastInput = now;
-    if (!isFeedPage()) return;
+    // scrolling a chat opened on top of the feed isn't watching reels
+    if (!isFeedPage() || typing(document.activeElement)) return;
     const fresh = now - lastSwipe > SWIPE_GAP_MS;
     lastSwipe = now;
     if (!fresh) return;
@@ -438,7 +441,6 @@
 
   window.addEventListener("wheel", onSwipe, { passive: true, capture: true });
   window.addEventListener("touchmove", onSwipe, { passive: true, capture: true });
-  const typing = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
   window.addEventListener("keydown", (e) => {
     lastInput = Date.now();
     // space and j/k are words when someone is writing a message or comment
@@ -632,7 +634,7 @@
       const onFeed = isFeedPage();
       // in an app overlay there is no input to see, so the feed being open is what counts
       const active = EXTERNAL || now - lastInput < IDLE_AFTER_MS;
-      const engaged = document.visibilityState === "visible" && active && onFeed;
+      const engaged = document.visibilityState === "visible" && active && onFeed && !typing(document.activeElement);
       if (engaged) activeMs += dt;
 
       if (stage === "idle" && onFeed && (activeMs > 4000 || swipes >= 2)) appear();
