@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mochi</string>
+    <string name="service_label">Mochi doomscroll guard</string>
+    <string name="service_description">Mochi watches which app is open and counts your swipes in Instagram. It draws the pet on top of Instagram and sends you to the home screen when you hit your limit. It does not read your messages or what is on screen, and nothing leaves your phone.</string>
+</resources>

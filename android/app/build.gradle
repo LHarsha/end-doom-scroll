@@ -1,0 +1,38 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.mochi.guard"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.mochi.guard"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main.assets.srcDirs += "$buildDir/generated/mochi-assets"
+    }
+}
+
+// The pet itself lives in the extension's content.js; copy it in so there is only one copy to maintain.
+def copyPet = tasks.register("copyPetScript", Copy) {
+    from(rootProject.file("../content.js"))
+    into("$buildDir/generated/mochi-assets")
+}
+tasks.named("preBuild") { dependsOn copyPet }
