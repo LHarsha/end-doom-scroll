@@ -34,6 +34,14 @@
 
   const PET_SVG = `
     <svg viewBox="0 0 100 100" class="pet" aria-hidden="true">
+      <defs>
+        <radialGradient id="mochi-skin" cx="38%" cy="32%" r="75%">
+          <stop offset="0" stop-color="#ffbf9c"/>
+          <stop offset=".55" stop-color="#ff9466"/>
+          <stop offset="1" stop-color="#f37a4b"/>
+        </radialGradient>
+        <filter id="mochi-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+      </defs>
       <ellipse class="shadow" cx="50" cy="96" rx="26" ry="4"/>
       <g class="feet">
         <ellipse class="foot l" cx="38" cy="90" rx="8" ry="5.5"/>
@@ -46,34 +54,40 @@
           <path class="stem" d="M50 32 C50 25 51 20 53 16"/>
           <path class="leaf" d="M52 19 C45 10 35 11 32 16 C38 21 46 22 52 19 Z"/>
           <path class="leaf" d="M53 17 C59 9 68 9 71 13 C66 19 59 20 53 17 Z"/>
-        </g>
-        <ellipse class="skin" cx="50" cy="62" rx="36" ry="31"/>
-        <ellipse class="shine" cx="34" cy="42" rx="9" ry="5" transform="rotate(-25 34 42)"/>
-        <ellipse class="belly" cx="50" cy="74" rx="19" ry="13"/>
-        <ellipse class="cheek" cx="25" cy="67" rx="6.5" ry="4"/>
-        <ellipse class="cheek" cx="75" cy="67" rx="6.5" ry="4"/>
-        <g class="eyes">
-          <ellipse class="eye-white" cx="38" cy="56" rx="10" ry="11.5"/>
-          <ellipse class="eye-white" cx="62" cy="56" rx="10" ry="11.5"/>
-          <g class="pupils">
-            <ellipse class="pupil" cx="38" cy="57" rx="6.2" ry="7"/>
-            <ellipse class="pupil" cx="62" cy="57" rx="6.2" ry="7"/>
-            <circle class="glint" cx="40.5" cy="53.5" r="2.4"/>
-            <circle class="glint" cx="64.5" cy="53.5" r="2.4"/>
-            <circle class="glint" cx="36" cy="60" r="1.1"/>
-            <circle class="glint" cx="60" cy="60" r="1.1"/>
+          <g class="bloom">
+            <circle cx="53" cy="12.5" r="2.6"/><circle cx="56.6" cy="15" r="2.6"/><circle cx="55.2" cy="19" r="2.6"/>
+            <circle cx="50.8" cy="19" r="2.6"/><circle cx="49.4" cy="15" r="2.6"/>
+            <circle class="bloom-mid" cx="53" cy="16" r="1.9"/>
           </g>
-          <rect class="lid" x="26" y="43" width="48" height="0" rx="3"/>
-          <path class="shut" d="M29 57 Q38 63 47 57 M53 57 Q62 63 71 57"/>
         </g>
-        <path class="brow l" d="M28 41 L45 46"/>
-        <path class="brow r" d="M72 41 L55 46"/>
-        <path class="sweat" d="M80 40 C77 45 77 49 80 49 C83 49 83 45 80 40 Z"/>
-        <path class="mouth m-happy" d="M44 71 Q47 74.5 50 71 Q53 74.5 56 71"/>
-        <path class="mouth m-open" d="M45 71 Q50 80 55 71 Z"/>
-        <path class="mouth m-flat" d="M45 73 Q50 72 55 73"/>
-        <path class="mouth m-mad" d="M44 76 Q50 70 56 76"/>
-        <ellipse class="mouth m-o" cx="50" cy="73" rx="2.6" ry="3"/>
+        <ellipse class="skin" cx="50" cy="63" rx="37" ry="30"/>
+        <ellipse class="shine" cx="32" cy="43" rx="10" ry="5.5" transform="rotate(-28 32 43)"/>
+        <circle class="shine" cx="44" cy="37" r="2"/>
+        <ellipse class="belly" cx="50" cy="78" rx="18" ry="11"/>
+        <ellipse class="cheek" cx="22" cy="72" rx="7.5" ry="5"/>
+        <ellipse class="cheek" cx="78" cy="72" rx="7.5" ry="5"/>
+        <g class="eyes">
+          <ellipse class="eye-white" cx="36" cy="60" rx="11" ry="12.5"/>
+          <ellipse class="eye-white" cx="64" cy="60" rx="11" ry="12.5"/>
+          <g class="pupils">
+            <ellipse class="pupil" cx="36" cy="61" rx="7.8" ry="8.8"/>
+            <ellipse class="pupil" cx="64" cy="61" rx="7.8" ry="8.8"/>
+            <circle class="glint" cx="39.5" cy="56.5" r="3.3"/>
+            <circle class="glint" cx="67.5" cy="56.5" r="3.3"/>
+            <circle class="glint" cx="33" cy="65" r="1.5"/>
+            <circle class="glint" cx="61" cy="65" r="1.5"/>
+          </g>
+          <rect class="lid" x="23" y="46" width="54" height="0" rx="3"/>
+          <path class="shut" d="M26 61 Q36 67.5 46 61 M54 61 Q64 67.5 74 61"/>
+        </g>
+        <path class="brow l" d="M26 44 L44 49"/>
+        <path class="brow r" d="M74 44 L56 49"/>
+        <path class="sweat" d="M82 43 C79 48 79 52 82 52 C85 52 85 48 82 43 Z"/>
+        <path class="mouth m-happy" d="M46 75 Q48 77.8 50 75 Q52 77.8 54 75"/>
+        <path class="mouth m-open" d="M46 75 Q50 82 54 75 Z"/>
+        <path class="mouth m-flat" d="M46.5 77 Q50 76 53.5 77"/>
+        <path class="mouth m-mad" d="M45.5 79 Q50 74 54.5 79"/>
+        <ellipse class="mouth m-o" cx="50" cy="77" rx="2.2" ry="2.6"/>
       </g></g>
     </svg>`;
 
@@ -92,16 +106,19 @@
     .wrap.climbing .rig { transform: rotate(-90deg); }
     .pet { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 6px rgba(0,0,0,.18)); }
 
-    .skin, .arm ellipse { fill: #ff9466; }
-    .shine { fill: #fff; opacity: .35; }
-    .belly { fill: #ffd2b8; }
-    .cheek { fill: #ff6f91; opacity: .5; }
+    .skin { fill: url(#mochi-skin); }
+    .arm ellipse { fill: #ff9466; }
+    .shine { fill: #fff; opacity: .45; }
+    .belly { fill: #ffd9c2; opacity: .8; }
+    .cheek { fill: #ff5c8a; opacity: .55; filter: url(#mochi-soft); }
+    .bloom circle { fill: #ffb3cb; }
+    .bloom .bloom-mid { fill: #ffd23f; }
     .foot { fill: #f07546; }
     .shadow { fill: #000; opacity: .16; transform-origin: 50px 96px; }
     .eye-white { fill: #fff; }
     .pupil { fill: #2a1b18; }
     .glint { fill: #fff; }
-    .lid { fill: #ff9466; transition: height .09s; }
+    .lid { fill: #ffa47a; transition: height .09s; }
     .stem { fill: none; stroke: #3f9e4e; stroke-width: 2.6; stroke-linecap: round; }
     .leaf { fill: #6fd17c; stroke: #3f9e4e; stroke-width: 1.6; }
     .sprout { transform-origin: 50px 32px; animation: sway 3s ease-in-out infinite; }
@@ -109,7 +126,7 @@
     .sweat { fill: #8fd3ff; opacity: 0; transition: opacity .3s; }
     .mouth { fill: none; stroke: #2a1b18; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
     .m-open, .m-o { fill: #b23a48; }
-    .pupils { transition: transform .15s ease-out; }
+    .pupils { transition: transform .15s ease-out, opacity .06s; }
     .arm { transition: transform .25s cubic-bezier(.3,1.5,.5,1); }
     .arm.l { transform-origin: 22px 60px; }
     .arm.r { transform-origin: 78px 60px; }
@@ -125,10 +142,11 @@
     .wrap[data-mood="mad"] .brow { opacity: 1; }
     .wrap[data-mood="worried"] .sweat, .wrap[data-mood="mad"] .sweat { opacity: 1; }
     .shut { fill: none; stroke: #2a1b18; stroke-width: 2.6; stroke-linecap: round; opacity: 0; }
-    .wrap[data-mood="sleepy"] .lid { height: 25px; }
+    .eye-white { transition: opacity .06s; }
+    .wrap[data-mood="sleepy"] .eye-white, .wrap[data-mood="sleepy"] .pupils,
+    .wrap.blink .eye-white, .wrap.blink .pupils { opacity: 0; }
     .wrap[data-mood="sleepy"] .shut, .wrap.blink .shut { opacity: 1; }
     .wrap[data-mood="shock"] .pupil { transform: scale(.7); transform-box: fill-box; transform-origin: center; }
-    .wrap.blink .lid { height: 25px; }
 
     .wrap.walking .bob { animation: waddle .38s ease-in-out infinite; }
     .wrap.walking .foot.l { animation: step .38s ease-in-out infinite; }
@@ -151,7 +169,7 @@
     .wrap.stomp .bob { animation: stomp .3s ease 3; }
     .wrap[data-mood="sleepy"] .body { animation: snore 3.2s ease-in-out infinite; }
 
-    @keyframes breathe { 50% { transform: scale(1.025, .975); } }
+    @keyframes breathe { 25% { transform: rotate(-2deg); } 50% { transform: scale(1.03, .97); } 75% { transform: rotate(2deg); } }
     @keyframes sway { 50% { transform: rotate(8deg); } }
     @keyframes waddle { 0%,100% { transform: rotate(-7deg) translateY(0); } 25% { transform: rotate(0) translateY(-5px); } 50% { transform: rotate(7deg) translateY(0); } 75% { transform: rotate(0) translateY(-5px); } }
     @keyframes step { 50% { transform: translateY(-5px); } }
