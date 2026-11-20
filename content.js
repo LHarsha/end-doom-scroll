@@ -412,8 +412,11 @@
 
   window.addEventListener("wheel", onSwipe, { passive: true, capture: true });
   window.addEventListener("touchmove", onSwipe, { passive: true, capture: true });
+  const typing = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
   window.addEventListener("keydown", (e) => {
     lastInput = Date.now();
+    // space and j/k are words when someone is writing a message or comment
+    if (typing(e.target) || typing(document.activeElement)) return;
     if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "j", "k"].includes(e.key)) onSwipe();
   }, { capture: true });
   window.addEventListener("pointermove", (e) => {
