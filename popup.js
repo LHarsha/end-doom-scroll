@@ -6,7 +6,7 @@ chrome.storage.local.get(DEFAULTS).then((s) => {
   $("minutes").value = s.minutes;
   $("swipes").value = s.swipes;
   $("replaceUrl").value = s.replaceUrl;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString("en-CA");
   $("closed").textContent = s.closedDate === today ? s.closedToday : 0;
 });
 

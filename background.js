@@ -17,8 +17,9 @@ chrome.runtime.onInstalled.addListener(async () => {
   await chrome.storage.local.set({ ...DEFAULTS, ...current });
 });
 
+// local date as YYYY-MM-DD, so the count resets at the user's midnight and not UTC's
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString("en-CA");
 }
 
 chrome.runtime.onMessage.addListener((msg, sender) => {
